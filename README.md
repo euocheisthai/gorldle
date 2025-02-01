@@ -1,3 +1,1 @@
-dotadle/bandle/wordle but better
-
-tba: everything
+you nosy mf

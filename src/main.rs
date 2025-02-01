@@ -1,6 +1,11 @@
-use std::env;
 use std::fs;
 
+use tokio;
+use axum::{
+    routing::{get, post},
+    http::StatusCode,
+    Json, Router,
+};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use serde_json::{Result, Value};
@@ -34,14 +39,14 @@ enum DotaAttackType {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct DotaEntry {
-    name: Value, // String,
+    name: Value,
     attribute: DotaAttribute,
     position: Vec<DotaPosition>,
     attack_type: DotaAttackType,
-    release_year: Value, // u8
+    release_year: Value,
 }
 
-fn load_profile(profile_path: &str) -> Value {
+async fn load_profile(profile_path: &str) -> Value {
     let profile: String = fs::read_to_string(profile_path)
         .expect("Did you move the config somewhere?");
 
@@ -51,16 +56,38 @@ fn load_profile(profile_path: &str) -> Value {
     return profile_json
 }
 
-fn main() {
-    let current_profile: Value = load_profile("profile_1.json");
-    let profile_id: &Value = &current_profile["profile_id"];
+async fn root() -> &'static str {
+    "TBA!"
+}
 
-    if let Value::Array(items) = &current_profile["items"] {
-        for item in items {
-            match serde_json::from_value::<DotaEntry>(item.clone()) {
-                Ok(dota_entry) => println!("{:?}", dota_entry),
-                Err(e) => eprintln!("Failed to parse entry: {}", e),
-            }
-        }
-    }
+async fn healthcheck() -> (StatusCode, Json<String>) {
+    let ok_response: String = String::from("okayeg");
+
+    return (StatusCode::OK, Json(ok_response))
+}
+
+#[tokio::main(flavor = "multi_thread", worker_threads = 5)]
+async fn main() {
+
+    tracing_subscriber::fmt::init();
+    let app = Router::new()
+        .route("/", get(root))
+        .route("/ping", get(healthcheck))
+        .route("/profile", get(load_profile));
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+
+
+    // let current_profile: Value = load_profile("profile_1.json");
+    // let _profile_id: &Value = &current_profile["profile_id"];
+
+    // if let Value::Array(items) = &current_profile["items"] {
+    //     for item in items {
+    //         match serde_json::from_value::<DotaEntry>(item.clone()) {
+    //             Ok(dota_entry) => println!("{:?}", dota_entry),
+    //             Err(e) => eprintln!("Failed to parse entry: {}", e),
+    //         }
+    //     }
+    // }
 }
