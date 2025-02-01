@@ -1,0 +1,26 @@
+{
+    "profile_id": "dota",
+    "items": [
+        {
+            "name": "ursa",
+            "attribute": "agility",
+            "position": ["carry"],
+            "attack_type": "melee",
+            "release_year": 2011
+        },
+        {
+            "name": "bane",
+            "attribute": "universal",
+            "position": ["hardsupport"],
+            "attack_type": "ranged",
+            "release_year": 2012
+        },
+        {
+            "name": "primal beast",
+            "attribute": "strength",
+            "position": ["offlane"],
+            "attack_type": "melee",
+            "release_year": 2022
+        }
+    ]
+}
