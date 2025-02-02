@@ -6,23 +6,26 @@ use axum::{
     routing::{get, post},
     http::StatusCode,
     Json, Router,
+    response::Html,
 };
+//use yew::Html;
 
 mod dota;
 use dota::DotaEntry;
 
 mod web;
-use web::web_main_render;
+use web::{web_main_render,render_profile_page};
 
-
-async fn root() -> &'static str {
-    "TBA!"
-}
 
 async fn healthcheck() -> (StatusCode, Json<String>) {
     let ok_response: String = String::from("okayeg");
 
     return (StatusCode::OK, Json(ok_response))
+}
+
+async fn root() -> Html<String> {
+    let profile_json = load_profile("profile_1.json").await;
+    render_profile_page(&profile_json.0)
 }
 
 async fn load_profile(profile_path: &str) -> Json<Value> {

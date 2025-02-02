@@ -13,7 +13,7 @@
             "id": 2,
             "name": "bane",
             "attribute": "universal",
-            "position": ["hard support"],
+            "position": ["hardsupport"],
             "attack_type": "ranged",
             "release_year": 2012
         },
