@@ -11,6 +11,9 @@ use axum::{
 mod dota;
 use dota::DotaEntry;
 
+mod web;
+use web::web_main_render;
+
 
 async fn root() -> &'static str {
     "TBA!"
@@ -55,5 +58,7 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
     axum::serve(listener, app).await.unwrap();
+
+    web_main_render();
 
 }
