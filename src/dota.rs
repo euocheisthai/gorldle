@@ -31,6 +31,7 @@ enum DotaAttackType {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DotaEntry {
+    id: Value,
     name: Value,
     attribute: DotaAttribute,
     position: Vec<DotaPosition>,
