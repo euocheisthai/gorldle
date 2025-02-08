@@ -2,4 +2,4 @@
 target = "index.html"
 
 [[proxy]]
-backend = "http://localhost:8080/"
+backend = "http://localhost:8080/api/"
