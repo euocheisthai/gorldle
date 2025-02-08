@@ -1,0 +1,77 @@
+use std::{fs, sync::Arc};
+use serde;
+use serde_json::{json, Value};
+use tokio;
+use axum::{
+    routing::{get, post},
+    http::StatusCode,
+    Json, Router,
+    response::Html,
+    extract::{Query, State},
+};
+use tokio::sync::RwLock;
+
+mod dota;
+use dota::DotaEntry;
+
+type SharedState = Arc<RwLock<Json<Value>>>; // Shared, mutable state
+
+#[tokio::main(flavor = "multi_thread", worker_threads = 5)]
+async fn main() {
+    tracing_subscriber::fmt::init();
+
+    // Load profile once at startup
+    let profile_data = load_profile(1).await;
+    let shared_state: SharedState = Arc::new(RwLock::new(profile_data));
+
+    let app = Router::new()
+        .route("/ping", get(healthcheck))
+        .route("/api/profile", get(get_profile))
+        .route("/api/load_profile", get(load_profile_handler).with_state(shared_state));
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
+
+// ✅ Healthcheck route
+async fn healthcheck() -> (StatusCode, Json<String>) {
+    (StatusCode::OK, Json("okayeg".to_string()))
+}
+
+// ✅ Loads profile from file
+async fn load_profile(profile_id: i8) -> Json<Value> {
+    let profile_path = format!("profile_{}.json", profile_id);
+    let profile: String = fs::read_to_string(profile_path).expect("Did you move the config?");
+    let current_profile: Value = serde_json::from_str(&profile).expect("Invalid JSON");
+    Json(current_profile)
+}
+
+// ✅ API route: Load profile and update shared state
+async fn load_profile_handler(
+    State(shared_state): State<SharedState>
+) -> Json<Value> {
+    let new_profile = load_profile(1).await; // Load fresh profile
+    let mut profile_lock = shared_state.write().await; // Acquire write lock
+    *profile_lock = new_profile.clone(); // Update shared state
+    new_profile // Return latest profile
+}
+
+#[derive(serde::Deserialize)]
+struct EntryID {
+    id: i16,
+}
+
+// ✅ API route: Fetch a specific profile entry
+async fn get_profile(
+    entry_id: Query<EntryID>,
+    State(shared_state): State<SharedState>, // Shared state for profile data
+) -> Json<Value> {
+    let profile_lock = shared_state.read().await; // Acquire read lock
+
+    if let Value::Array(items) = &profile_lock["items"] {
+        if let Some(entry) = items.iter().find(|e| e["id"] == entry_id.id) {
+            return Json(entry.clone());
+        }
+    }
+    Json(json!({"error": "Entry not found"}))
+}

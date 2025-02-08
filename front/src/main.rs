@@ -42,7 +42,7 @@ fn main() {
 //     }
 // }
 
-// pub fn web_main_render() {
+// pub fn main() {
 //     yew::Renderer::<App>::new().render();
 // }
 

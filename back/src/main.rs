@@ -14,6 +14,9 @@ use axum::{
 mod dota;
 use dota::DotaEntry;
 
+mod profile;
+use profile::EntryId;
+
 type SharedState = Arc<RwLock<Json<Value>>>;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 5)]
@@ -21,7 +24,7 @@ async fn main() {
 
     tracing_subscriber::fmt::init();
 
-    let profile_data: Json<Value> = load_profile(1).await;
+    let profile_data: Json<Value> = load_profile(1).await; 
     let shared_state: SharedState = Arc::new(RwLock::new(profile_data));
 
     let app = Router::new()
@@ -69,18 +72,9 @@ async fn load_profile(profile_id: i8) -> Json<Value> {
     return axum::Json(current_profile)
 }
 
-#[derive(serde::Deserialize)]
-struct EntryId {
-    id: i16,
-}
-
-// async fn get_profile(entry_id: Query<EntryId>) {
-//     let entry_id: EntryId = entry_id.0;
-//     // return the whole profile entry...
-// }
 
 // /api/profile/?id=2
-async fn get_profile(entry_id: Query<EntryId>, State(shared_state): State<SharedState>) -> Json<Value> {
+async fn get_profile(entry_id: Query<profile::EntryId>, State(shared_state): State<SharedState>) -> Json<Value> {
     let profile_lock: tokio::sync::RwLockReadGuard<'_, Json<Value>> = shared_state.read().await;
 
     if let Value::Array(items) = &profile_lock["items"] {
@@ -88,5 +82,5 @@ async fn get_profile(entry_id: Query<EntryId>, State(shared_state): State<Shared
             return Json(entry.clone());
         }
     }
-    Json(json!({"error": "Entry not found"}))
+    Json(serde_json::json!({"error": "Entry not found"}))
 }
