@@ -30,6 +30,8 @@ async fn main() {
         .route("/ping", get(healthcheck))
         .route("/api/load_profile", get(load_profile_handler))
         .route("/api/profile", get(get_profile)).with_state(shared_state);
+        // /api/randomize - to randomize 4 numbers for each game mode, also has to be done at the start
+        // /api/refresh - to reload these 4 numbers
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
     axum::serve(listener, app).await.unwrap();
