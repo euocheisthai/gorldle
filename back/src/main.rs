@@ -30,6 +30,8 @@ async fn main() {
         .route("/ping", get(healthcheck))
         .route("/api/load_profile", get(load_profile_handler))
         .route("/api/profile", get(get_profile)).with_state(shared_state);
+        // /api/randomize - to randomize 4 numbers for each game mode, also has to be done at the start
+        // /api/refresh - to reload these 4 numbers
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
     axum::serve(listener, app).await.unwrap();
@@ -42,8 +44,7 @@ async fn healthcheck() -> (StatusCode, Json<String>) {
 async fn load_profile_handler(State(shared_state): State<SharedState>) -> Json<Value> {
     let new_profile: Json<Value> = load_profile(1).await;
 
-    let mut profile_lock: tokio::sync::RwLockWriteGuard<'_, Json<Value>> =
-        shared_state.write().await;
+    let mut profile_lock: tokio::sync::RwLockWriteGuard<'_, Json<Value>> = shared_state.write().await;
     *profile_lock = new_profile.clone();
 
     return new_profile;
