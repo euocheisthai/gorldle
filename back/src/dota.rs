@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use serde_json::{Result, Value};
 
-#[derive(Debug,Serialize, Deserialize)]
+#[derive(Debug,Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")] 
 enum DotaAttribute {
     Strength,
@@ -11,7 +11,7 @@ enum DotaAttribute {
     Universal,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")] 
 enum DotaPosition {
     Carry,
@@ -21,7 +21,7 @@ enum DotaPosition {
     HardSupport
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")] 
 enum DotaAttackType {
     Melee,
@@ -29,7 +29,7 @@ enum DotaAttackType {
     Both
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct DotaEntry {
     pub id: Value,
     pub name: Value,
