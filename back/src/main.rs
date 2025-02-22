@@ -1,6 +1,9 @@
+use std::{fs, sync::Arc};
+use rand::Rng;
+
 use serde;
 use serde_json::Value;
-use std::{fs, sync::Arc};
+use assert_json_diff::{assert_json_include, assert_json_eq};
 
 use axum::{
     extract::{Query, State},
@@ -27,10 +30,11 @@ async fn main() {
     let shared_state: SharedState = Arc::new(RwLock::new(profile_data));
 
     let app = Router::new()
-        .route("/ping", get(healthcheck))
+        .route("/api/ping", get(healthcheck))
         .route("/api/load_profile", get(load_profile_handler))
-        .route("/api/profile", get(get_profile)).with_state(shared_state);
-        // /api/randomize - to randomize 4 numbers for each game mode, also has to be done at the start
+        .route("/api/profile_item", get(get_profile_item)).with_state(shared_state)
+        .route("/api/guess_item", get(guess_profile_item))
+        .route("/api/randomize", get(randomize_answer));
         // /api/refresh - to reload these 4 numbers
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
@@ -50,7 +54,7 @@ async fn load_profile_handler(State(shared_state): State<SharedState>) -> Json<V
     return new_profile;
 }
 
-async fn load_profile(profile_id: i8) -> Json<Value> {
+async fn load_profile(profile_id: u8) -> Json<Value> {
     let profile_path: &str = &format!("profile_{}.json", profile_id);
     let profile: String =
         fs::read_to_string(profile_path).expect("Did you move the required config somewhere?");
@@ -68,8 +72,8 @@ async fn load_profile(profile_id: i8) -> Json<Value> {
     return axum::Json(current_profile);
 }
 
-// /api/profile/?id=2
-async fn get_profile(
+// /api/profile_item/?id=2
+async fn get_profile_item(
     entry_id: Query<profile::EntryId>,
     State(shared_state): State<SharedState>,
 ) -> Json<Value> {
@@ -81,4 +85,25 @@ async fn get_profile(
         }
     }
     Json(serde_json::json!({"error": "Entry not found"}))
+}
+
+// /api/guess_item?id=2
+async fn guess_profile_item(entry_id: Query<profile::EntryId>) {
+    // received entry id
+    // call randomize_answer 
+    // call get_profile_item to get info about player item id
+    // call get_profile_item to get info about the randomized id 
+    // compate the 2 items
+}
+
+// should only be called once on start, but ill handle that later
+// as of now its randomized on every attempt lol
+async fn randomize_answer() -> Json<Value> {
+    let mut rng = rand::rng();
+    let random_num: u8 = rng.random_range(0..3);
+    let data = serde_json::json!({
+        "id": format!("{}", random_num)
+    });
+    let answer: Value = serde_json::from_value(data).unwrap();
+    return axum::Json(answer)
 }

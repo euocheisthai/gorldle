@@ -2,60 +2,67 @@
 use gloo_net::http::Request;
 use yew::prelude::*;
 use yew_router::prelude::*;
+use wasm_bindgen_futures::spawn_local;
 
 
-#[function_component(App)]
-fn app() -> yew::Html {
-    // react flashbacks
-    let counter: UseStateHandle<i32> = use_state(|| 0);
-    let onclick = {
-        let counter: UseStateHandle<i32> = counter.clone();
-        move |_| {
-            let value = *counter + 1;
-            counter.set(value);
-        }
-    };
+#[derive(Clone, Routable, PartialEq)]
+enum Route {
+    #[at("/")]
+    Home,
+    #[at("/heroguess")]
+    HeroGuess,
+    #[at("/get_profile_item")]
+    ProfileItem,
+}
 
-    html! {
-        <div>
-            <button {onclick}>{ "+1" }</button>
-            <p>{ *counter }</p>
-        </div>
+
+fn switch(routes: Route) -> Html {
+    match routes {
+        Route::Home => html! { < HomePage /> },
+        Route::HeroGuess => html! { < HeroGuess />},
+        Route::ProfileItem => html! { <ProfileItem /> },
     }
 }
 
-fn main() {
-    wasm_logger::init(wasm_logger::Config::new(log::Level::Trace));
-    yew::Renderer::<App>::new().render();
+#[function_component(HomePage)]
+fn render_home_page() -> Html {
+    html! {
+        <div>{"background of qop (should be present everywhere), game modes on top"}</div>
+    }
+}
+
+#[function_component(HeroGuess)]
+fn hero_guessing_game() -> Html {
+    html! {
+        <>
+        <div>{"search bar here - includes a list of available guesses, clicking one sends a request to /api/guess_item  with the item id"}</div>
+        <div>{"at the bottom is a list of guesses that are all of type ProfileItem"}</div>
+        </>
+    }
+}
+
+
+#[function_component(ProfileItem)]
+fn profile_item() -> Html {
+    html! {
+        <div>{"Icon + abilities list, each coloured green/yellow/red"}</div>
+    }
 }
 
 
 
 
-// use serde_json::Value;
-// use axum::response::Html;
+fn main() {
+    wasm_logger::init(wasm_logger::Config::new(log::Level::Trace));
+    console_error_panic_hook::set_once();
+    yew::Renderer::<App>::new().render();
+}
 
-// #[function_component(App)]
-// fn app() -> yew::Html {
-//     html! {
-//         <h1>{ "Hello World" }</h1>
-//     }
-// }
-
-// pub fn main() {
-//     yew::Renderer::<App>::new().render();
-// }
-
-
-// pub fn render_profile_page(profile_json: &Value) -> Html<String> {
-//     let mut html_content = String::from("<h1>Dota Profile</h1><ul>");
-    
-//     if let Some(items) = profile_json["items"].as_array() {
-//         for item in items {
-//             html_content.push_str(&format!("<li>{:?}</li>", item));
-//         }
-//     }
-
-//     html_content.push_str("</ul>");
-//     Html(html_content)
-// }
+#[function_component(App)]
+fn app() -> Html {
+    html! {
+        <BrowserRouter>
+            <Switch<Route> render={switch} />
+        </BrowserRouter>
+    }
+}
