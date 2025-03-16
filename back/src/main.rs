@@ -122,30 +122,27 @@ async fn guess_profile_item(
     
     let mut fields: Vec<FieldComparison> = Vec::new();
 
-    if let (player_map, answer_map) = (player_item, answer_item) {
-        for (key, player_value) in player_map {
-            let answer_value = answer_map.get(key);
-            let correctness = match answer_value {
-                Some(answer_value) if player_value == answer_value => Correctness::Correct,
-                Some(Value::Array(player_list)) if key == "position" => {
-                    if let Some(Value::Array(answer_list)) = answer_value {
-                        check_partial_correctness(&player_list, &answer_list)
-                    } else {
-                        Correctness::Incorrect
-                    }
+    for (key, player_value) in &player_item {
+        let correctness = match answer_item.get(key) {
+            Some(answer_value) if player_value == answer_value => Correctness::Correct,
+
+            Some(Value::Array(player_list)) if key == "position" => {
+                if let Some(Value::Array(answer_list)) = answer_item.get(key) {
+                    check_partial_correctness(&player_list, &answer_list)
+                } else {
+                    Correctness::Incorrect
                 }
-                Some(_) => Correctness::PartiallyCorrect,
-                None => Correctness::Incorrect,
-            };
+            }
+            Some(_) => Correctness::PartiallyCorrect,
+            None => Correctness::Incorrect,
+        };
 
-            fields.push(FieldComparison {
-                field: key.clone(),
-                value: player_value.to_string(),
-                correct: correctness,
-            });
-        }
+        fields.push(FieldComparison {
+            field: key.to_string().clone(),
+            value: player_value.to_string(),
+            correct: correctness,
+        });
     }
-
 }
 
 
