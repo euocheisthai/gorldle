@@ -1,10 +1,10 @@
-use std::{fs, sync::Arc};
-use std::collections::HashSet;
 use rand::Rng;
+use std::collections::HashSet;
+use std::{fs, sync::Arc};
 
+use assert_json_diff::{assert_json_eq, assert_json_include};
 use serde;
 use serde_json::Value;
-use assert_json_diff::{assert_json_include, assert_json_eq};
 
 use axum::{
     extract::{Query, State},
@@ -21,7 +21,7 @@ use reqwest;
 mod dota;
 use dota::DotaEntry;
 mod profile;
-use profile::{EntryId, FieldComparison, GuessResponse, Correctness};
+use profile::{Correctness, EntryId, FieldComparison, GuessResponse};
 
 struct AppState {
     profile: RwLock<Json<Value>>,
@@ -66,7 +66,8 @@ async fn healthcheck() -> (StatusCode, Json<String>) {
 async fn load_profile_handler(State(shared_state): State<SharedState>) -> Json<Value> {
     let new_profile: Json<Value> = load_profile(1).await;
 
-    let mut profile_lock: tokio::sync::RwLockWriteGuard<'_, Json<Value>> = shared_state.profile.write().await;
+    let mut profile_lock: tokio::sync::RwLockWriteGuard<'_, Json<Value>> =
+        shared_state.profile.write().await;
     *profile_lock = new_profile.clone();
 
     return new_profile;
@@ -74,7 +75,8 @@ async fn load_profile_handler(State(shared_state): State<SharedState>) -> Json<V
 
 async fn load_profile(profile_id: u8) -> Json<Value> {
     let profile_path: &str = &format!("profile_{}.json", profile_id);
-    let profile: String = fs::read_to_string(profile_path).expect("Did you move the required config somewhere?");
+    let profile: String =
+        fs::read_to_string(profile_path).expect("Did you move the required config somewhere?");
     let current_profile: Value = serde_json::from_str(&profile).expect("That's no JSON");
 
     if let Value::Array(items) = &current_profile["items"] {
@@ -94,38 +96,53 @@ async fn get_profile_item(
     entry_id: Query<profile::EntryId>,
     State(shared_state): State<SharedState>,
 ) -> Json<Value> {
-    let profile_lock: tokio::sync::RwLockReadGuard<'_, Json<Value>> = shared_state.profile.read().await;
+    let profile_lock: tokio::sync::RwLockReadGuard<'_, Json<Value>> =
+        shared_state.profile.read().await;
 
     if let Value::Array(items) = &profile_lock["items"] {
         if let Some(entry) = items.iter().find(|e: &&Value| e["id"] == entry_id.id) {
             return Json(entry.clone());
         }
     }
-    
-    return Json(serde_json::json!({"error": "Entry not found"}))
+
+    return Json(serde_json::json!({"error": "Entry not found"}));
 }
 
 // /api/guess_item?id=2
 async fn guess_profile_item(
-    entry_id: Query<profile::EntryId>, 
-    State(shared_state): State<SharedState>
+    entry_id: Query<profile::EntryId>,
+    State(shared_state): State<SharedState>,
 ) -> axum::Json<GuessResponse> {
     let client: &reqwest::Client = &shared_state.client;
     let base_url: &String = &shared_state.base_url;
 
     let player_url: String = format!("{}?id={}", base_url, entry_id.id);
-    let player_item: DotaEntry = client.get(&player_url).send().await.unwrap().json::<DotaEntry>().await.unwrap();
+    let player_item: DotaEntry = client
+        .get(&player_url)
+        .send()
+        .await
+        .unwrap()
+        .json::<DotaEntry>()
+        .await
+        .unwrap();
 
     let answer_id: tokio::sync::RwLockReadGuard<'_, u8> = shared_state.random_id.read().await;
     let answer_url = format!("{}?id={}", base_url, answer_id);
-    let answer_item: DotaEntry = client.get(&answer_url).send().await.unwrap().json::<DotaEntry>().await.unwrap();
-    
+    let answer_item: DotaEntry = client
+        .get(&answer_url)
+        .send()
+        .await
+        .unwrap()
+        .json::<DotaEntry>()
+        .await
+        .unwrap();
+
     let mut guess_response: GuessResponse = profile::GuessResponse { fields: Vec::new() };
 
     for (key, player_value) in &player_item {
         let correctness = match answer_item.get(key) {
             Some(answer_value) if player_value == answer_value => Correctness::Correct,
-    
+
             Some(answer_value) if key == "position" => {
                 if let (Value::Array(player_list), Value::Array(answer_list)) =
                     (&player_value, &answer_value)
@@ -135,28 +152,36 @@ async fn guess_profile_item(
                     Correctness::Incorrect
                 }
             }
-    
+
             Some(_) => Correctness::Incorrect,
             None => Correctness::Incorrect,
         };
-    
+
         guess_response.fields.push(FieldComparison {
             field: key.to_string(),
             value: player_value.to_string(),
             correct: correctness,
         });
     }
-    println!("Field comparison (GuessResponse) between player guess and answer: {:?}", guess_response);
+    println!(
+        "Field comparison (GuessResponse) between player guess and answer: {:?}",
+        guess_response
+    );
 
     return axum::Json(guess_response);
 }
 
-
 fn check_partial_correctness(player_list: &[Value], answer_list: &[Value]) -> Correctness {
     let player_set: HashSet<_> = player_list.iter().collect();
-    println!("Debugging partial correctness, player_set: {:?}", player_set);
+    println!(
+        "Debugging partial correctness, player_set: {:?}",
+        player_set
+    );
     let answer_set: HashSet<_> = answer_list.iter().collect();
-    println!("Debugging partial correctness, answer_set: {:?}", answer_set);
+    println!(
+        "Debugging partial correctness, answer_set: {:?}",
+        answer_set
+    );
 
     if player_set == answer_set {
         Correctness::Correct
@@ -171,7 +196,8 @@ fn check_partial_correctness(player_list: &[Value], answer_list: &[Value]) -> Co
 #[axum::debug_handler]
 async fn randomize_answer(State(shared_state): State<SharedState>) -> Json<Value> {
     let random_num = rand::rng().random_range(0..3);
-    let mut random_id_lock: tokio::sync::RwLockWriteGuard<'_, u8> = shared_state.random_id.write().await;
+    let mut random_id_lock: tokio::sync::RwLockWriteGuard<'_, u8> =
+        shared_state.random_id.write().await;
     *random_id_lock = random_num;
 
     Json(serde_json::json!({ "id": random_num }))
