@@ -21,7 +21,7 @@ use reqwest;
 mod dota;
 use dota::DotaEntry;
 mod profile;
-use profile::{EntryId, FieldComparison, Correctness};
+use profile::{EntryId, FieldComparison, GuessResponse, Correctness};
 
 struct AppState {
     profile: RwLock<Json<Value>>,
@@ -109,7 +109,7 @@ async fn get_profile_item(
 async fn guess_profile_item(
     entry_id: Query<profile::EntryId>, 
     State(shared_state): State<SharedState>
-) {
+) -> axum::Json<GuessResponse> {
     let client: &reqwest::Client = &shared_state.client;
     let base_url: &String = &shared_state.base_url;
 
@@ -120,35 +120,43 @@ async fn guess_profile_item(
     let answer_url = format!("{}?id={}", base_url, answer_id);
     let answer_item: DotaEntry = client.get(&answer_url).send().await.unwrap().json::<DotaEntry>().await.unwrap();
     
-    let mut fields: Vec<FieldComparison> = Vec::new();
+    let mut guess_response: GuessResponse = profile::GuessResponse { fields: Vec::new() };
 
     for (key, player_value) in &player_item {
         let correctness = match answer_item.get(key) {
             Some(answer_value) if player_value == answer_value => Correctness::Correct,
-
-            Some(Value::Array(player_list)) if key == "position" => {
-                if let Some(Value::Array(answer_list)) = answer_item.get(key) {
+    
+            Some(answer_value) if key == "position" => {
+                if let (Value::Array(player_list), Value::Array(answer_list)) =
+                    (&player_value, &answer_value)
+                {
                     check_partial_correctness(&player_list, &answer_list)
                 } else {
                     Correctness::Incorrect
                 }
             }
-            Some(_) => Correctness::PartiallyCorrect,
+    
+            Some(_) => Correctness::Incorrect,
             None => Correctness::Incorrect,
         };
-
-        fields.push(FieldComparison {
-            field: key.to_string().clone(),
+    
+        guess_response.fields.push(FieldComparison {
+            field: key.to_string(),
             value: player_value.to_string(),
             correct: correctness,
         });
     }
+    println!("Field comparison (GuessResponse) between player guess and answer: {:?}", guess_response);
+
+    return axum::Json(guess_response);
 }
 
 
 fn check_partial_correctness(player_list: &[Value], answer_list: &[Value]) -> Correctness {
     let player_set: HashSet<_> = player_list.iter().collect();
+    println!("Debugging partial correctness, player_set: {:?}", player_set);
     let answer_set: HashSet<_> = answer_list.iter().collect();
+    println!("Debugging partial correctness, answer_set: {:?}", answer_set);
 
     if player_set == answer_set {
         Correctness::Correct

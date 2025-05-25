@@ -5,14 +5,14 @@ pub struct EntryId {
     pub id: u8,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Correctness {
     Correct,
     PartiallyCorrect,
     Incorrect
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FieldComparison {
     // field: &'static str,
     pub(crate) field: String,
@@ -20,7 +20,7 @@ pub struct FieldComparison {
     pub(crate) correct: Correctness,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GuessResponse {
-    fields: Vec<FieldComparison>,
+    pub(crate) fields: Vec<FieldComparison>,
 }
