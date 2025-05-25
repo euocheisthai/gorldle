@@ -8,7 +8,16 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 console_error_panic_hook = "0.1.7"
-leptos = { version = "0.8.2", features = ["csr", "nightly", "ssr"] }
+leptos = { version = "0.8.2", features = ["hydrate", "nightly", "ssr"] }
+leptos_meta = { version = "0.8.2", features = ["ssr"] }
+leptos_router = { version = "0.8.2", features = ["ssr"] }
 log = { version = "0.4.27", features = ["serde", "std"] }
 wasm-bindgen-futures = "0.4.50"
 wasm-logger = "0.2.0"
+
+[features]
+hydrate = [
+    "leptos/hydrate",
+]
+
+ssr = []

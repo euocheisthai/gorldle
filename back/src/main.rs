@@ -18,6 +18,10 @@ use tokio::sync::RwLock;
 
 use reqwest;
 
+// use front::App;
+// use leptos::*;
+// use leptos_axum::{generate_route_list, LeptosRoutes};
+
 mod dota;
 use dota::DotaEntry;
 mod profile;
@@ -47,7 +51,12 @@ async fn main() {
         base_url: "http://localhost:8080/api/profile_item".to_string(),
     });
 
+    // let leptos_options = leptos::prelude::get_configuration(None).unwrap().leptos;
+    // let addr = leptos_options.site_addr.clone();
+    // let leptos_routes = generate_route_list(App);
+
     let app = Router::new()
+        //.leptos_routes(&leptos_options, leptos_routes, App)
         .route("/api/ping", get(healthcheck))
         .route("/api/load_profile", get(load_profile_handler))
         .route("/api/profile_item", get(get_profile_item))

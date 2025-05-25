@@ -1,6 +1,9 @@
-use leptos::prelude::*;
+pub mod app;
 
-fn main() {
+#[cfg(feature = "hydrate")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn hydrate() {
+    use crate::app::*;
     console_error_panic_hook::set_once();
-    leptos::mount::mount_to_body(|| view! { <p>"Hello, world!"</p> })
+    leptos::mount::hydrate_body(App);
 }
