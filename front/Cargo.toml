@@ -1,13 +1,11 @@
 [package]
-name = "gorldle-front"
+name = "front"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 console_error_panic_hook = "0.1.7"
-gloo-net = "0.6.0"
-log = { version = "0.4.25", features = ["serde", "std"] }
+leptos = { version = "0.8.2", features = ["csr", "nightly", "ssr"] }
+log = { version = "0.4.27", features = ["serde", "std"] }
 wasm-bindgen-futures = "0.4.50"
 wasm-logger = "0.2.0"
-yew = { version = "0.21.0", features = ["csr"] }
-yew-router = "0.18.0"
