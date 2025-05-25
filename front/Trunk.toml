@@ -1,5 +1,19 @@
 [build]
 target = "index.html"
+dist = "dist"
+offline = false
+
+[watch]
+watch = ["src"]
+
+[serve]
+addresses = ["127.0.0.1"]
+port = 8081
+open = true
+
+[clean]
+dist = "dist"
+cargo = true
 
 [[proxy]]
 backend = "http://localhost:8080/api/"
