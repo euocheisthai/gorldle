@@ -4,3 +4,8 @@ members = [
   "back",
   "front",
 ]
+
+[[workspace.metadata.leptos]]
+name = "gorldle-main"
+bin-package = "back"
+lib-package = "front"
