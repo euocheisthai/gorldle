@@ -1,0 +1,37 @@
+{
+    "profile_id": "dota",
+    "items": [
+        {
+            "id": 1,
+            "name": "ursa",
+            "attribute": "agility",
+            "position": ["carry"],
+            "attack_type": "melee",
+            "release_year": 2011
+        },
+        {
+            "id": 2,
+            "name": "bane",
+            "attribute": "universal",
+            "position": ["hardsupport"],
+            "attack_type": "ranged",
+            "release_year": 2012
+        },
+        {
+            "id": 3,
+            "name": "primal beast",
+            "attribute": "strength",
+            "position": ["offlane"],
+            "attack_type": "melee",
+            "release_year": 2022
+        },
+        {
+            "id": 4,
+            "name": "storm spirit",
+            "attribute": "intelligence",
+            "position": ["midlane"],
+            "attack_type": "ranged",
+            "release_year": 2010
+        }
+    ]
+}

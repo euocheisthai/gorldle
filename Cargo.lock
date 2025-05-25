@@ -688,6 +688,7 @@ version = "0.1.0"
 dependencies = [
  "assert-json-diff",
  "axum",
+ "leptos",
  "rand",
  "reqwest",
  "serde",

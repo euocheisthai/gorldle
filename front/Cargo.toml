@@ -3,6 +3,9 @@ name = "front"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 console_error_panic_hook = "0.1.7"
 leptos = { version = "0.8.2", features = ["csr", "nightly", "ssr"] }
