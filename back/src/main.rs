@@ -83,7 +83,7 @@ async fn load_profile_handler(State(shared_state): State<SharedState>) -> Json<V
 }
 
 async fn load_profile(profile_id: u8) -> Json<Value> {
-    let profile_path: &str = &format!("profile_{}.json", profile_id);
+    let profile_path: &str = &format!("/bin/profile_{}.json", profile_id);  // todo - move json into a more appopriate place, preferably reading from args
     let profile: String =
         fs::read_to_string(profile_path).expect("Did you move the required config somewhere?");
     let current_profile: Value = serde_json::from_str(&profile).expect("That's no JSON");
@@ -91,8 +91,8 @@ async fn load_profile(profile_id: u8) -> Json<Value> {
     if let Value::Array(items) = &current_profile["items"] {
         for item in items {
             match serde_json::from_value::<DotaEntry>(item.clone()) {
-                Ok(dota_entry) => println!("Loaded: {:?}", dota_entry),
-                Err(e) => eprintln!("Failed to parse entry: {}", e),
+                Ok(dota_entry) => println!("Loaded: {:?}\n", dota_entry),
+                Err(e) => eprintln!("Failed to parse entry: {}\n", e),
             }
         }
     }
@@ -173,7 +173,7 @@ async fn guess_profile_item(
         });
     }
     println!(
-        "Field comparison (GuessResponse) between player guess and answer: {:?}",
+        "Field comparison (GuessResponse) between player guess and answer\n: {:?}",
         guess_response
     );
 
@@ -183,12 +183,12 @@ async fn guess_profile_item(
 fn check_partial_correctness(player_list: &[Value], answer_list: &[Value]) -> Correctness {
     let player_set: HashSet<_> = player_list.iter().collect();
     println!(
-        "Debugging partial correctness, player_set: {:?}",
+        "---\nDebugging partial correctness, player_set\n: {:?}",
         player_set
     );
     let answer_set: HashSet<_> = answer_list.iter().collect();
     println!(
-        "Debugging partial correctness, answer_set: {:?}",
+        "---\nDebugging partial correctness, answer_set\n: {:?}",
         answer_set
     );
 
