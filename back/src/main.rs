@@ -1,8 +1,9 @@
+use leptos_router::RouteListing;
 use rand::Rng;
 use std::collections::HashSet;
 use std::{fs, sync::Arc};
 
-use assert_json_diff::{assert_json_eq, assert_json_include};
+use assert_json_diff;
 use serde;
 use serde_json::Value;
 
@@ -18,9 +19,10 @@ use tokio::sync::RwLock;
 
 use reqwest;
 
-// use front::App;
-// use leptos::*;
-// use leptos_axum::{generate_route_list, LeptosRoutes};
+use front::app::*;
+use leptos::config::{get_configuration, LeptosOptions};
+use leptos::*;
+use leptos_axum::{generate_route_list, AxumRouteListing, LeptosRoutes};
 
 mod dota;
 use dota::DotaEntry;
@@ -32,6 +34,8 @@ struct AppState {
     random_id: RwLock<u8>,
     client: reqwest::Client,
     base_url: String,
+    leptos_options: LeptosOptions,
+    leptos_routes: Vec<AxumRouteListing>,
 }
 
 type SharedState = Arc<AppState>;
@@ -44,19 +48,29 @@ async fn main() {
     let mut rng = rand::rng();
     let random_id: u8 = rng.random_range(0..3);
 
+    // <leptos state stuff>
+    let conf: prelude::ConfFile =
+        get_configuration(None).expect("Failed to load Leptos configuration");
+    let leptos_options: LeptosOptions = conf.leptos_options.clone();
+    let addr: std::net::SocketAddr = leptos_options.site_addr;
+    let leptos_routes: Vec<AxumRouteListing> = generate_route_list(App);
+    // </leptos state stuff>
+
     let shared_state = Arc::new(AppState {
         profile: RwLock::new(profile_data),
         random_id: RwLock::new(random_id),
         client: reqwest::Client::new(),
         base_url: "http://localhost:8080/api/profile_item".to_string(),
+        leptos_options: leptos_options,
+        leptos_routes: leptos_routes,
     });
 
-    // let leptos_options = leptos::prelude::get_configuration(None).unwrap().leptos;
-    // let addr = leptos_options.site_addr.clone();
-    // let leptos_routes = generate_route_list(App);
-
     let app = Router::new()
-        //.leptos_routes(&leptos_options, leptos_routes, App)
+        // .leptos_routes(&leptos_options, routes, {
+        //         let leptos_options = leptos_options.clone();
+        //         move || shell(leptos_options.clone())
+        //     })
+        // .fallback(leptos_axum::file_and_error_handler(shell))
         .route("/api/ping", get(healthcheck))
         .route("/api/load_profile", get(load_profile_handler))
         .route("/api/profile_item", get(get_profile_item))
@@ -64,8 +78,10 @@ async fn main() {
         .route("/api/randomize", get(randomize_answer))
         .with_state(shared_state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
 }
 
 async fn healthcheck() -> (StatusCode, Json<String>) {
@@ -83,7 +99,8 @@ async fn load_profile_handler(State(shared_state): State<SharedState>) -> Json<V
 }
 
 async fn load_profile(profile_id: u8) -> Json<Value> {
-    let profile_path: &str = &format!("/bin/profile_{}.json", profile_id);  // todo - move json into a more appopriate place, preferably reading from args
+    // todo - move json into a more appopriate place, preferably reading from args
+    let profile_path: &str = &format!("/bin/profile_{}.json", profile_id);
     let profile: String =
         fs::read_to_string(profile_path).expect("Did you move the required config somewhere?");
     let current_profile: Value = serde_json::from_str(&profile).expect("That's no JSON");
