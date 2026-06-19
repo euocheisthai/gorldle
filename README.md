@@ -2,7 +2,7 @@
 
 wippppp
 
-## api
+### api
 
 * `GET /api/ping` — healthcheck
 * `GET /api/randomize` — regenerate the answer id for a new game
@@ -37,3 +37,10 @@ cd front && trunk serve
 ```
 
 then open localhost:3000
+
+### todo
+
+* deploy in [lab](https://github.com/euocheisthai/lab)
+* add an actually pretty ui
+* [über important] proper ci
+* neighbor admin app for managing/building profiles
