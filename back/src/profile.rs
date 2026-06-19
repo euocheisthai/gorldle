@@ -1,25 +1,27 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug,Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct EntryId {
     pub id: u8,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum Correctness {
     Correct,
     PartiallyCorrect,
-    Incorrect
+    Incorrect,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FieldComparison {
-    pub(crate) field: String,
-    pub(crate) value: String,
-    pub(crate) correct: Correctness,
+    pub field: String,
+    pub value: serde_json::Value,
+    pub correct: Correctness,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GuessResponse {
-    pub(crate) fields: Vec<FieldComparison>,
+    pub name: String,
+    pub fields: Vec<FieldComparison>,
 }

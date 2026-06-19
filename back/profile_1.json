@@ -21,7 +21,7 @@
             "id": 3,
             "name": "primal beast",
             "attribute": "strength",
-            "position": ["offlane"],
+            "position": ["offlane", "midlane"],
             "attack_type": "melee",
             "release_year": 2022
         },
