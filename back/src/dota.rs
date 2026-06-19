@@ -1,36 +1,35 @@
 use serde::{Deserialize, Serialize};
-use serde_json;
-use serde_json::{Result, Value};
+use serde_json::Value;
 use std::vec::IntoIter;
 
-#[derive(Debug,Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")] 
-enum DotaAttribute {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum DotaAttribute {
     Strength,
     Agility,
     Intelligence,
     Universal,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")] 
-enum DotaPosition {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum DotaPosition {
     Carry,
     Midlane,
     Offlane,
     SoftSupport,
-    HardSupport
+    HardSupport,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")] 
-enum DotaAttackType {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum DotaAttackType {
     Melee,
     Ranged,
-    Both
+    Both,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DotaEntry {
     pub id: Value,
     pub name: Value,
@@ -46,21 +45,23 @@ impl<'a> IntoIterator for &'a DotaEntry {
 
     fn into_iter(self) -> Self::IntoIter {
         vec![
-            ("id", self.id.clone()),
             ("name", self.name.clone()),
             ("attribute", serde_json::to_value(&self.attribute).unwrap()),
             ("position", serde_json::to_value(&self.position).unwrap()),
-            ("attack_type", serde_json::to_value(&self.attack_type).unwrap()),
+            (
+                "attack_type",
+                serde_json::to_value(&self.attack_type).unwrap(),
+            ),
             ("release_year", self.release_year.clone()),
-        ].into_iter()
+        ]
+        .into_iter()
     }
 }
 
 impl DotaEntry {
     pub fn get(&self, key: &str) -> Option<Value> {
-        self.clone()  
-            .into_iter()
-            .find(|(field_name, _)| *field_name == key)  
+        self.into_iter()
+            .find(|(field_name, _)| *field_name == key)
             .map(|(_, value)| value)
     }
 }

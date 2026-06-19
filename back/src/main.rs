@@ -1,214 +1,175 @@
-use leptos_router::RouteListing;
-use rand::Rng;
 use std::collections::HashSet;
-use std::{fs, sync::Arc};
-
-use assert_json_diff;
-use serde;
-use serde_json::Value;
+use std::sync::Arc;
 
 use axum::{
     extract::{Query, State},
     http::StatusCode,
-    response::{Html, IntoResponse},
-    routing::{get, post},
+    routing::get,
     Json, Router,
 };
-use tokio;
+use rand::Rng;
+use serde_json::Value;
 use tokio::sync::RwLock;
-
-use reqwest;
-
-use front::app::*;
-use leptos::config::{get_configuration, LeptosOptions};
-use leptos::*;
-use leptos_axum::{generate_route_list, AxumRouteListing, LeptosRoutes};
+use tower_http::cors::{Any, CorsLayer};
 
 mod dota;
 use dota::DotaEntry;
 mod profile;
 use profile::{Correctness, EntryId, FieldComparison, GuessResponse};
 
+const EMBEDDED_PROFILE: &str = include_str!("../profile_1.json");
+
 struct AppState {
-    profile: RwLock<Json<Value>>,
-    random_id: RwLock<u8>,
-    client: reqwest::Client,
-    base_url: String,
-    leptos_options: LeptosOptions,
-    leptos_routes: Vec<AxumRouteListing>,
+    profile: RwLock<Value>,
+    answer_id: RwLock<u8>,
 }
 
 type SharedState = Arc<AppState>;
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 5)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    let profile_data: Json<Value> = load_profile(1).await;
-    let mut rng = rand::rng();
-    let random_id: u8 = rng.random_range(0..3);
-
-    // <leptos state stuff>
-    let conf: prelude::ConfFile =
-        get_configuration(None).expect("Failed to load Leptos configuration");
-    let leptos_options: LeptosOptions = conf.leptos_options.clone();
-    let addr: std::net::SocketAddr = leptos_options.site_addr;
-    let leptos_routes: Vec<AxumRouteListing> = generate_route_list(App);
-    // </leptos state stuff>
+    let profile_data: Value = parse_profile(EMBEDDED_PROFILE);
+    let answer_id = pick_answer_id(&profile_data);
 
     let shared_state = Arc::new(AppState {
         profile: RwLock::new(profile_data),
-        random_id: RwLock::new(random_id),
-        client: reqwest::Client::new(),
-        base_url: "http://localhost:8080/api/profile_item".to_string(),
-        leptos_options: leptos_options,
-        leptos_routes: leptos_routes,
+        answer_id: RwLock::new(answer_id),
     });
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let app = Router::new()
-        // .leptos_routes(&leptos_options, routes, {
-        //         let leptos_options = leptos_options.clone();
-        //         move || shell(leptos_options.clone())
-        //     })
-        // .fallback(leptos_axum::file_and_error_handler(shell))
         .route("/api/ping", get(healthcheck))
+        .route("/api/items", get(list_items))
         .route("/api/load_profile", get(load_profile_handler))
         .route("/api/profile_item", get(get_profile_item))
         .route("/api/guess_item", get(guess_profile_item))
         .route("/api/randomize", get(randomize_answer))
-        .with_state(shared_state);
+        .with_state(shared_state)
+        .layer(cors);
 
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    let addr = "127.0.0.1:8080";
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    tracing::info!("listening on http://{}", addr);
     axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
 }
 
-async fn healthcheck() -> (StatusCode, Json<String>) {
-    return (StatusCode::OK, Json("okayeg".to_string()));
-}
-
-async fn load_profile_handler(State(shared_state): State<SharedState>) -> Json<Value> {
-    let new_profile: Json<Value> = load_profile(1).await;
-
-    let mut profile_lock: tokio::sync::RwLockWriteGuard<'_, Json<Value>> =
-        shared_state.profile.write().await;
-    *profile_lock = new_profile.clone();
-
-    return new_profile;
-}
-
-async fn load_profile(profile_id: u8) -> Json<Value> {
-    // todo - move json into a more appopriate place, preferably reading from args
-    let profile_path: &str = &format!("/bin/profile_{}.json", profile_id);
-    let profile: String =
-        fs::read_to_string(profile_path).expect("Did you move the required config somewhere?");
-    let current_profile: Value = serde_json::from_str(&profile).expect("That's no JSON");
-
-    if let Value::Array(items) = &current_profile["items"] {
+fn parse_profile(raw: &str) -> Value {
+    let value: Value = serde_json::from_str(raw).expect("profile_1.json is not valid JSON");
+    if let Value::Array(items) = &value["items"] {
         for item in items {
-            match serde_json::from_value::<DotaEntry>(item.clone()) {
-                Ok(dota_entry) => println!("Loaded: {:?}\n", dota_entry),
-                Err(e) => eprintln!("Failed to parse entry: {}\n", e),
+            if let Err(e) = serde_json::from_value::<DotaEntry>(item.clone()) {
+                tracing::warn!("failed to parse entry as DotaEntry: {e}");
             }
         }
     }
-
-    return axum::Json(current_profile);
+    value
 }
 
-// /api/profile_item/?id=2
-async fn get_profile_item(
-    entry_id: Query<profile::EntryId>,
-    State(shared_state): State<SharedState>,
-) -> Json<Value> {
-    let profile_lock: tokio::sync::RwLockReadGuard<'_, Json<Value>> =
-        shared_state.profile.read().await;
+fn pick_answer_id(profile: &Value) -> u8 {
+    let ids: Vec<u8> = profile["items"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item["id"].as_u64().map(|n| n as u8))
+                .collect()
+        })
+        .unwrap_or_default();
+    let idx = rand::rng().random_range(0..ids.len().max(1));
+    ids.get(idx).copied().unwrap_or(1)
+}
 
-    if let Value::Array(items) = &profile_lock["items"] {
-        if let Some(entry) = items.iter().find(|e: &&Value| e["id"] == entry_id.id) {
+async fn healthcheck() -> (StatusCode, Json<&'static str>) {
+    (StatusCode::OK, Json("okayeg"))
+}
+
+async fn list_items(State(state): State<SharedState>) -> Json<Value> {
+    let profile = state.profile.read().await;
+    Json(profile["items"].clone())
+}
+
+async fn load_profile_handler(State(state): State<SharedState>) -> Json<Value> {
+    let new_profile = parse_profile(EMBEDDED_PROFILE);
+    *state.profile.write().await = new_profile.clone();
+    *state.answer_id.write().await = pick_answer_id(&new_profile);
+    Json(new_profile)
+}
+
+async fn get_profile_item(
+    Query(entry_id): Query<EntryId>,
+    State(state): State<SharedState>,
+) -> Json<Value> {
+    let profile = state.profile.read().await;
+    if let Value::Array(items) = &profile["items"] {
+        if let Some(entry) = items.iter().find(|e| e["id"] == entry_id.id) {
             return Json(entry.clone());
         }
     }
-
-    return Json(serde_json::json!({"error": "Entry not found"}));
+    Json(serde_json::json!({ "error": "Entry not found" }))
 }
 
-// /api/guess_item?id=2
 async fn guess_profile_item(
-    entry_id: Query<profile::EntryId>,
-    State(shared_state): State<SharedState>,
-) -> axum::Json<GuessResponse> {
-    let client: &reqwest::Client = &shared_state.client;
-    let base_url: &String = &shared_state.base_url;
+    Query(entry_id): Query<EntryId>,
+    State(state): State<SharedState>,
+) -> Result<Json<GuessResponse>, (StatusCode, String)> {
+    let profile = state.profile.read().await;
+    let answer_id = *state.answer_id.read().await;
 
-    let player_url: String = format!("{}?id={}", base_url, entry_id.id);
-    let player_item: DotaEntry = client
-        .get(&player_url)
-        .send()
-        .await
-        .unwrap()
-        .json::<DotaEntry>()
-        .await
-        .unwrap();
+    let items = profile["items"]
+        .as_array()
+        .ok_or((StatusCode::INTERNAL_SERVER_ERROR, "no items".into()))?;
 
-    let answer_id: tokio::sync::RwLockReadGuard<'_, u8> = shared_state.random_id.read().await;
-    let answer_url = format!("{}?id={}", base_url, answer_id);
-    let answer_item: DotaEntry = client
-        .get(&answer_url)
-        .send()
-        .await
-        .unwrap()
-        .json::<DotaEntry>()
-        .await
-        .unwrap();
+    let lookup = |id: u64| -> Result<DotaEntry, (StatusCode, String)> {
+        items
+            .iter()
+            .find(|e| e["id"] == id)
+            .cloned()
+            .ok_or((StatusCode::NOT_FOUND, format!("no entry for id {id}")))
+            .and_then(|v| {
+                serde_json::from_value::<DotaEntry>(v)
+                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+            })
+    };
 
-    let mut guess_response: GuessResponse = profile::GuessResponse { fields: Vec::new() };
+    let player_item = lookup(entry_id.id as u64)?;
+    let answer_item = lookup(answer_id as u64)?;
 
+    let mut fields = Vec::new();
     for (key, player_value) in &player_item {
         let correctness = match answer_item.get(key) {
             Some(answer_value) if player_value == answer_value => Correctness::Correct,
-
             Some(answer_value) if key == "position" => {
-                if let (Value::Array(player_list), Value::Array(answer_list)) =
-                    (&player_value, &answer_value)
-                {
-                    check_partial_correctness(&player_list, &answer_list)
-                } else {
-                    Correctness::Incorrect
+                match (&player_value, &answer_value) {
+                    (Value::Array(p), Value::Array(a)) => check_partial_correctness(p, a),
+                    _ => Correctness::Incorrect,
                 }
             }
-
-            Some(_) => Correctness::Incorrect,
-            None => Correctness::Incorrect,
+            _ => Correctness::Incorrect,
         };
-
-        guess_response.fields.push(FieldComparison {
+        fields.push(FieldComparison {
             field: key.to_string(),
-            value: player_value.to_string(),
+            value: player_value,
             correct: correctness,
         });
     }
-    println!(
-        "Field comparison (GuessResponse) between player guess and answer\n: {:?}",
-        guess_response
-    );
 
-    return axum::Json(guess_response);
+    Ok(Json(GuessResponse {
+        name: player_item.name.as_str().unwrap_or("").to_string(),
+        fields,
+    }))
 }
 
 fn check_partial_correctness(player_list: &[Value], answer_list: &[Value]) -> Correctness {
     let player_set: HashSet<_> = player_list.iter().collect();
-    println!(
-        "---\nDebugging partial correctness, player_set\n: {:?}",
-        player_set
-    );
     let answer_set: HashSet<_> = answer_list.iter().collect();
-    println!(
-        "---\nDebugging partial correctness, answer_set\n: {:?}",
-        answer_set
-    );
-
     if player_set == answer_set {
         Correctness::Correct
     } else if !player_set.is_disjoint(&answer_set) {
@@ -218,13 +179,9 @@ fn check_partial_correctness(player_list: &[Value], answer_list: &[Value]) -> Co
     }
 }
 
-// /api/randomize
-#[axum::debug_handler]
-async fn randomize_answer(State(shared_state): State<SharedState>) -> Json<Value> {
-    let random_num = rand::rng().random_range(0..3);
-    let mut random_id_lock: tokio::sync::RwLockWriteGuard<'_, u8> =
-        shared_state.random_id.write().await;
-    *random_id_lock = random_num;
-
-    Json(serde_json::json!({ "id": random_num }))
+async fn randomize_answer(State(state): State<SharedState>) -> Json<Value> {
+    let profile = state.profile.read().await;
+    let new_id = pick_answer_id(&profile);
+    *state.answer_id.write().await = new_id;
+    Json(serde_json::json!({ "id": new_id }))
 }

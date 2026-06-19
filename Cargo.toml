@@ -1,20 +1,8 @@
 [workspace]
 resolver = "2"
-members = [
-  "back",
-  "front",
-]
+members = ["back", "front"]
+default-members = ["back"]
 
 [workspace.package]
 version = "0.1.0"
-rust-version = "1.87.0"
-
-[[workspace.metadata.leptos]]
-name = "gorldle"
-bin-package = "back"
-lib-package = "front"
-site-root = "public"
-site-addr = "127.0.0.1:3000"
-reload-port = 3001
-env = "DEV"
-lib-features = ["ssr"]
+edition = "2021"
