@@ -48,10 +48,8 @@ docker build -f back/Dockerfile -t euocheisthai/gorldle-api:<tag> .
 
 for the frontend, build it first, then package it in the nginx runtime image.
 
-in ci, the entire `front/dist/` directory will be passed from the `trunk build` job to the image build job at the same path (todo)
-
 ```sh
-cd front && trunk build --release --locked
+(cd front && trunk build --release --locked)
 
 docker build -f front/Dockerfile -t euocheisthai/gorldle-front:<tag> .
 ```
@@ -60,5 +58,5 @@ docker build -f front/Dockerfile -t euocheisthai/gorldle-front:<tag> .
 
 * deploy in [lab](https://github.com/euocheisthai/lab)
 * ~~add an actually pretty ui~~
-* [über important] proper ci
 * neighbor admin app for managing/building profiles
+* for github actionsq: configure `DOCKERHUB_TOKEN` for euocheisthai dockerhub account and register the `lab-runners` scale set on k3s https://github.com/euocheisthai/lab/tree/master/infra/ci/github-runners

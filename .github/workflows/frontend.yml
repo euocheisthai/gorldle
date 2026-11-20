@@ -1,0 +1,40 @@
+name: dotadle frontend release
+
+on:
+  push:
+    branches: ['**']
+    paths: ['front/**']
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: lab-runners
+    container: rust:1.87.0-bookworm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: rustup target add wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: trunk@0.21.7,wasm-bindgen-cli@0.2.100
+      - run: trunk build --release --locked
+        working-directory: front
+      - uses: actions/upload-artifact@v4
+        with:
+          name: front-dist
+          path: front/dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: bundle
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      dockerfile: front/Dockerfile
+      image: euocheisthai/gorldle-front
+      bundle: front-dist
+    secrets:
+      dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
