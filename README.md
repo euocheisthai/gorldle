@@ -38,9 +38,27 @@ cd front && trunk serve
 
 then open localhost:3000
 
+### building the release images
+ 
+locally `cargo run -p back` defaults to `127.0.0.1:8080`
+
+```sh
+docker build -f back/Dockerfile -t euocheisthai/gorldle-api:<tag> .
+```
+
+for the frontend, build it first, then package it in the nginx runtime image.
+
+in ci, the entire `front/dist/` directory will be passed from the `trunk build` job to the image build job at the same path (todo)
+
+```sh
+cd front && trunk build --release --locked
+
+docker build -f front/Dockerfile -t euocheisthai/gorldle-front:<tag> .
+```
+
 ### todo
 
 * deploy in [lab](https://github.com/euocheisthai/lab)
-* add an actually pretty ui
+* ~~add an actually pretty ui~~
 * [über important] proper ci
 * neighbor admin app for managing/building profiles

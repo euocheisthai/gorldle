@@ -1,25 +1,17 @@
 ARG RUST_VERSION=1.87.0
-ARG APP_NAME=gorldle-back
-
-FROM rust:${RUST_VERSION}-slim-bullseye AS build
-ARG APP_NAME
+FROM rust:${RUST_VERSION}-slim-bookworm AS build
 WORKDIR /app
-RUN apt-get update
-RUN apt-get install --no-install-recommends -y pkg-config openssl libssl-dev
+COPY Cargo.toml Cargo.lock ./
+COPY front/Cargo.toml front/Cargo.toml
+COPY front/src/main.rs front/src/main.rs
+COPY back/Cargo.toml back/profile_1.json back/
+COPY back/src/ back/src/
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target \
+    cargo build --locked --release -p back && cp target/release/back /bin/gorldle-back
 
-RUN --mount=type=bind,source=src,target=src \
-    --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
-    --mount=type=cache,target=/app/target/ \
-    --mount=type=cache,target=/usr/local/cargo/registry/ \
-    <<EOF
-set -e
-cargo build --release
-cp ./target/release/$APP_NAME /bin/$APP_NAME
-EOF
-
-FROM debian:bullseye-slim AS final
-ARG APP_NAME
-COPY --from=build /bin/$APP_NAME /bin/
-COPY ./profile_1.json /bin/profile_1.json
+FROM debian:bookworm-slim
+COPY --from=build /bin/gorldle-back /bin/gorldle-back
+ENV APP_LISTEN_ADDR=0.0.0.0:8080
 EXPOSE 8080
 CMD ["/bin/gorldle-back"]

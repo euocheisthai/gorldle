@@ -53,8 +53,8 @@ async fn main() {
         .with_state(shared_state)
         .layer(cors);
 
-    let addr = "127.0.0.1:8080";
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let addr = std::env::var("APP_LISTEN_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".into());
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     tracing::info!("listening on http://{}", addr);
     axum::serve(listener, app.into_make_service())
         .await
